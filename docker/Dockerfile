@@ -5,7 +5,7 @@
 ARG UBUNTU_VERSION=18.04
 
 FROM tensorflow/tensorflow:latest-gpu-py3
-LABEL maintainer Cristian C Beltran-Hernandez "beltran@hlab.sys.es.osaka-u.ac.jp"
+LABEL maintainer="Wang, Yan" email="wangyan@frtech.fr"
 
 #### Use an official ROS runtime as a parent image
 
@@ -17,7 +17,7 @@ RUN echo 'Etc/UTC' > /etc/timezone && \
     apt-get update && apt-get install -q -y tzdata 
 
 # setup sources.list
-RUN echo "deb http://packages.ros.org/ros/ubuntu bionic main" > /etc/apt/sources.list.d/ros1-latest.list
+RUN sh -c '. /etc/lsb-release && echo "deb http://mirrors.ustc.edu.cn/ros/ubuntu/ `lsb_release -cs` main" > /etc/apt/sources.list.d/ros-latest.list'
 
 # setup keys
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
@@ -32,20 +32,26 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-# bootstrap rosdep
-RUN rosdep init \
-    && rosdep update
-
 # install ros packages
 ENV ROS_DISTRO melodic
 RUN apt-get update && apt-get install -y \
     ros-melodic-ros-core
 
-
 # install ros packages
 RUN apt-get install -y \
     ros-melodic-ros-base
 
+# bootstrap rosdep
+COPY ros_bypass/hosts /etc/hosts
+COPY ros_bypass/resolv.conf /etc/resolv.conf
+COPY ros_bypass/ros_github /etc/ros/ros_github
+
+RUN rosdep init
+
+COPY ros_bypass/rosdep_bypass/__init__.py /usr/lib/python2.7/dist-packages/rosdistro/__init__.py
+COPY ros_bypass/rosdep_bypass/20-default.list /etc/ros/rosdep/sources.list.d/20-default.list
+
+RUN rosdep update
 
 # install universal robot ros packages
 RUN apt-get install -y \
@@ -148,11 +154,34 @@ RUN /bin/bash -c "cd ~/ros_ws/src \
     && git clone https://github.com/cambel/robot-learning-cl-dr.git glozzom"
 
 # Updating ROSDEP and installing dependencies
+#COPY dependencies/gazebo_ros_link_attacher ~/ros_ws/src/gazebo_ros_link_attacher
+#COPY dependencies/robotiq ~/ros_ws/src/robotiq
+#COPY dependencies/robotiq_urcap_control ~/ros_ws/src/robotiq_urcap_control
+#COPY dependencies/trac_ik ~/ros_ws/src/trac_ik
+#COPY dependencies/universal_robot ~/ros_ws/src/universal_robot
+#COPY dependencies/Universal_Robots_ROS_Driver ~/ros_ws/src/Universal_Robots_ROS_Driver
+#COPY dependencies/ur_msgs ~/ros_ws/src/ur_msgs
+
 RUN cd ~/ros_ws \
-    && rosinstall ~/ros_ws/src /opt/ros/$ROS_DISTRO src/glozzom/dependencies.rosinstall \
-    && apt update -qq \
+    && rosinstall ~/ros_ws/src /opt/ros/$ROS_DISTRO src/glozzom/dependencies.rosinstall
+
+# Install UR-related libraries
+RUN /bin/bash -c "cd ~/ros_ws/src \
+    && git clone https://github.com/UniversalRobots/Universal_Robots_Client_Library.git ur_client_library"
+RUN /bin/bash -c "cd ~/ros_ws/src \
+    && git clone https://github.com/UniversalRobots/Universal_Robots_ROS_scaled_controllers.git ur_ros_scaled_controllers"
+RUN /bin/bash -c "cd ~/ros_ws/src \
+    && git clone https://github.com/UniversalRobots/Universal_Robots_ROS_passthrough_controllers.git ur_ros_passthrough_controllers"
+RUN /bin/bash -c "cd ~/ros_ws/src \
+    && git clone https://github.com/UniversalRobots/Universal_Robots_ROS_controllers_cartesian.git ur_ros_controllers_cartesian"
+RUN /bin/bash -c "cd ~/ros_ws/src \
+    && git clone https://github.com/UniversalRobots/Universal_Robots_ROS_cartesian_control_msgs.git ur_ros_cartesian_control_msgs"
+
+RUN apt update -qq \
     && rosdep fix-permissions \
-    && rosdep update -q \
+    && rosdep update --include-eol-distros
+
+RUN cd ~/ros_ws \
     && rosdep install --from-paths src --ignore-src --rosdistro=$ROS_DISTRO -y
 
 # Compiling ros workspace
@@ -171,7 +200,7 @@ RUN apt-get update && apt-get install -y ros-$ROS_DISTRO-rqt-multiplot
 
 RUN pip install xmltodict imageio IPython
 
-RUN pip install PySide2 PyQt5 transform3d
+RUN pip install PySide2 PyQt5 transform3d -i https://mirrors.bfsu.edu.cn/pypi/web/simple/
 
 # Compiling ros workspace
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
@@ -188,7 +217,7 @@ RUN pip3 install pyserial
 RUN pip install Cython cpprb
 
 RUN apt install -y python-pip
-RUN python2 -m pip install pyquaternion scipy Cython
+RUN python2 -m pip install pyquaternion scipy Cython -i https://mirrors.bfsu.edu.cn/pypi/web/simple/
 
 # fix problem with tf2rl
 RUN apt-get -qq update && \
@@ -205,14 +234,14 @@ RUN rm /usr/lib/python3/dist-packages/sip.cpython-36m-x86_64-linux-gnu.so
 # fix gazebo
 RUN apt update && apt-mark hold cuda-compat-10-1 libnvinfer-plugin6 libnvinfer6 libcudnn7 && apt upgrade -y 
 
-RUN pip install future netifaces pandas sklearn seaborn
+RUN pip install future netifaces pandas sklearn seaborn -i https://mirrors.bfsu.edu.cn/pypi/web/simple/
 
 COPY docker/gazebo-gui.ini /root/.gazebo/gui.ini
 
 # fix TF for python3
 RUN pip3 install --extra-index-url https://rospypi.github.io/simple/ tf2_ros
 # fix gym
-RUN pip install gym[atari]==0.15.7
+RUN pip install gym[atari]==0.15.7 -i https://mirrors.bfsu.edu.cn/pypi/web/simple/
 
 ### End ###
 
