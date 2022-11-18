@@ -11,10 +11,9 @@
   <arg name="debug"      default="false"/>
   <arg name="gui"        default="true"/>
   <arg name="rate"       default="500" />
-  <!-- <arg name="grasp_plugin" default="false"/> -->
-  <arg name="world_name" default="$(find ur3_gazebo)/worlds/cubes_task.world" />
+  <arg name="world_name" default="$(find ur3_gazebo)/worlds/marker_cubes_task.world" />
+  <arg name="grasp_plugin" default="false"/>
   <!-- <arg name="peg_shape" default="cuboid"/> -->
-
 
   <!--Robot description and related parameter files -->
   <arg name="robot_description_file" default="$(dirname)/inc/load_ur_rstest.launch.xml" 
@@ -31,12 +30,13 @@
   </include>
 
   <include file="$(find ur_control)/launch/ur_e_controllers.launch">
+    <arg name="gripper_robotiq_hande" value="true" />
   </include>
 
   <!-- Load urdf on the parameter server -->
   <include file="$(arg robot_description_file)">
     <arg name="ur_robot" value="$(arg ur_robot)"/>
-    <!-- <arg name="grasp_plugin" value="$(arg grasp_plugin)"/> -->
+    <arg name="grasp_plugin" value="$(arg grasp_plugin)"/>
     <!-- <arg name="peg_shape" default="$(arg peg_shape)"/> -->
   </include>
 

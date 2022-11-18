@@ -25,8 +25,7 @@
 # Author: Cristian C Beltran-Hernandez
 
 import numpy as np
-import tf
-from ur_control import transformations, traj_utils, conversions
+from ur_control import transformations, conversions
 from ur_control.arm import Arm
 import argparse
 import random
@@ -38,23 +37,50 @@ import timeit
 # Then enable the following  lines to re-direct tf to the new library
 import sys
 sys.path[:0] = ['/usr/local/lib/python3.6/dist-packages/']
+import tf
 
 np.set_printoptions(suppress=True)
 np.set_printoptions(linewidth=np.inf)
 
+def get_jnt():
+    rospy.loginfo(f"jnt_angles (rad) = {arm.joint_angles()}")
+    rospy.loginfo(f"jnt_angles (deg) = {np.rad2deg(arm.joint_angles())}")
+
+def get_pose():
+    rospy.loginfo(f"cpose = {arm.end_effector()}")
+
 
 def move_joints(wait=True):
     # desired joint configuration 'q'
-    q = [0, 0, 0, 0, 0, 0]
-    q = [3.2317, -1.979, 1.3969, -0.4844, -0.1151, -1.7565]
-    q = [1.5353, -1.211, -1.4186, -0.546, 1.6476, -0.0237]
-
+    # q = [0, 0, 0, 0, 0, 0]
+    # q = [3.2317, -1.979, 1.3969, -0.4844, -0.1151, -1.7565]
+    # q = [1.5353, -1.211, -1.4186, -0.546, 1.6476, -0.0237]
+    q = [1.7003, -1.4499, 1.1033, -1.2332, -1.5695, 3.2716]     # left
+    # q = [1.1827, -1.6553, 1.3142, -1.2376, -1.5658, 2.7542]   # middle
+    q = [0.8661, -1.6122, 1.2743, -1.2389, -1.5635, 2.4376]     # right
     # go to desired joint configuration
     # in t time (seconds)
     # wait is for waiting to finish the motion before executing
     # anything else or ignore and continue with whatever is next
-    arm.set_joint_positions(position=q, wait=wait, t=0.5)
+    arm.set_joint_positions(position=q, wait=wait, t=5.0)
 
+def move_x(delta, wait=True):
+    cpose = arm.end_effector()
+    deltax = np.array([delta, 0., 0., 0., 0., 0.])
+    cpose = transformations.pose_euler_to_quaternion(cpose, deltax, ee_rotation=True)
+    arm.set_target_pose(pose=cpose, wait=wait, t=1.0)
+
+def move_y(delta, wait=True):
+    cpose = arm.end_effector()
+    deltay = np.array([0., delta, 0., 0., 0., 0.])
+    cpose = transformations.pose_euler_to_quaternion(cpose, deltay, ee_rotation=True)
+    arm.set_target_pose(pose=cpose, wait=wait, t=1.0)
+
+def move_z(delta, wait=True):
+    cpose = arm.end_effector()
+    deltaz = np.array([0., 0., delta, 0., 0., 0.])
+    cpose = transformations.pose_euler_to_quaternion(cpose, deltaz, ee_rotation=True)
+    arm.set_target_pose(pose=cpose, wait=wait, t=1.0)
 
 def follow_trajectory():
     traj = [
@@ -76,7 +102,7 @@ def move_endeffector(wait=True):
     # get current position of the end effector
     cpose = arm.end_effector()
     # define the desired translation/rotation
-    deltax = np.array([0., 0., 0.04, 0., 0., 0.])
+    deltax = np.array([0.0, 0.02, 0.0, -0., 0., 0.])
     # add translation/rotation to current position
     cpose = transformations.pose_euler_to_quaternion(cpose, deltax, ee_rotation=True)
     # execute desired new pose
@@ -98,12 +124,28 @@ def get_random_valid_direction(plane):
 def main():
     """ Main function to be run. """
     parser = argparse.ArgumentParser(description='Test force control')
+    parser.add_argument('-j', '--jnt', action='store_true',
+                        help='read current joint angles')
+    parser.add_argument('-p', '--eef', action='store_true',
+                        help='read current eef pose')
     parser.add_argument('-m', '--move', action='store_true',
                         help='move to joint configuration')
     parser.add_argument('-t', '--move_traj', action='store_true',
                         help='move following a trajectory of joint configurations')
     parser.add_argument('-e', '--move_ee', action='store_true',
                         help='move to a desired end-effector position')
+    parser.add_argument('-g', '--gripper', action='store_true',
+                        help='enable gripper')
+    parser.add_argument('-mx', '--move_x',
+                        nargs='?', const=0.04, type=float,
+                        help='move the eef along its x-axis')
+    parser.add_argument('-my', '--move_y',
+                        nargs='?', const=0.04, type=float,
+                        help='move the eef along its y-axis')
+    parser.add_argument('-mz', '--move_z',
+                        nargs='?', const=0.04, type=float,
+                        help='move the eef along its z-axis')
+                        
 
     args = parser.parse_args()
 
@@ -118,12 +160,22 @@ def main():
     real_start_time = timeit.default_timer()
     ros_start_time = rospy.get_time()
 
+    if args.jnt:
+        get_jnt()
+    if args.eef:
+        get_pose()
     if args.move:
         move_joints()
     if args.move_traj:
         follow_trajectory()
     if args.move_ee:
         move_endeffector()
+    if args.move_x:
+        move_x(args.move_x)
+    if args.move_y:
+        move_y(args.move_y)
+    if args.move_z:
+        move_z(args.move_z)
 
     print("real time", round(timeit.default_timer() - real_start_time, 3))
     print("ros time", round(rospy.get_time() - ros_start_time, 3))
