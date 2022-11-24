@@ -7,22 +7,22 @@
       <visual name='visual'>
         <geometry>
           <box>
-            <size>0.1778 0.1778 1e-5</size>
+            <size>0.05 0.05 1e-5</size>
           </box>
         </geometry>
         <material>
           <script>
             <uri>model://aruco_marker_3/materials/scripts</uri>
             <uri>model://aruco_marker_3/materials/textures</uri>
-            <name>ArucoVisualMarker0/Marker</name>
+            <name>ArucoMarker3/Marker</name>
           </script>
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
           <specular>0 0 0 1</specular>
           <emissive>1 1 1 0</emissive>
-          <shader type='vertex'>
+          <!-- <shader type='vertex'>
             <normal_map>__default__</normal_map>
-          </shader>
+          </shader> -->
         </material>
         <pose frame=''>0 0 0 0 -0 0</pose>
         <cast_shadows>1</cast_shadows>
@@ -34,7 +34,7 @@
         <pose frame=''>0 0 0 0 -0 0</pose>
         <geometry>
           <box>
-            <size>0.1778 0.1778 1e-05</size>
+            <size>0.05 0.05 1e-05</size>
           </box>
         </geometry>
       </collision>
@@ -45,7 +45,7 @@
       <visual name='visual'>
         <geometry>
           <box>
-            <size>0.1778 0.1778 1e-5</size>
+            <size>0.06 0.06 1e-5</size>
           </box>
         </geometry>
         <material>
@@ -71,7 +71,7 @@
         <pose frame=''>0 0 0 0 -0 0</pose>
         <geometry>
           <box>
-            <size>0.1778 0.1778 1e-5</size>
+            <size>0.06 0.06 1e-5</size>
           </box>
         </geometry>
       </collision>
