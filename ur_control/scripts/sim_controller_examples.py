@@ -53,11 +53,7 @@ def get_pose():
 def move_joints(wait=True):
     # desired joint configuration 'q'
     # q = [0, 0, 0, 0, 0, 0]
-    # q = [3.2317, -1.979, 1.3969, -0.4844, -0.1151, -1.7565]
-    # q = [1.5353, -1.211, -1.4186, -0.546, 1.6476, -0.0237]
-    q = [1.7003, -1.4499, 1.1033, -1.2332, -1.5695, 3.2716]     # left
-    # q = [1.1827, -1.6553, 1.3142, -1.2376, -1.5658, 2.7542]   # middle
-    q = [0.8661, -1.6122, 1.2743, -1.2389, -1.5635, 2.4376]     # right
+    q = [1.57, -1.57, 1.05, -1.57, -1.57, 0]
     # go to desired joint configuration
     # in t time (seconds)
     # wait is for waiting to finish the motion before executing

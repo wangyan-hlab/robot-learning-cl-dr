@@ -6,6 +6,7 @@ import sys
 import os
 import cv2
 import numpy as np
+import time
 
 class ImageListener:
     def __init__(self, topic):
@@ -36,8 +37,15 @@ class ImageListener:
             return
         
         cv2.imshow("Color image", cv_image)
+        k = cv2.waitKey(10)
+        if k == 27: # Press ESC
+            cv2.destroyAllWindows()    
+        elif k == ord('s'): # Press 's' to save the image
+            ts = str(time.time())
+            cv2.imwrite("/root/chessboard_images/image_"+ts+".jpg", cv_image, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+            print("image_"+ts+".jpg"+" saved.")
         # cv2.imshow("Depth image", depth_image)
-        cv2.waitKey(2)
+        # cv2.waitKey(2)
 
 if __name__ == '__main__':
     rospy.init_node("depth_image_processor")

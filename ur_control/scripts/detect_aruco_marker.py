@@ -86,6 +86,15 @@ class ImageListener:
                     # ArUco marker
                     cX = int((topLeft[0] + bottomRight[0]) / 2.0)
                     cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+
+                    if markerID == 1:
+                        print("Marker 1 at: ({}, {})".format(cX, cY))
+                    elif markerID == 2:
+                        print("Marker 2 at: ({}, {})".format(cX, cY))
+                    elif markerID == 3:
+                        print("Marker 3 at: ({}, {})".format(cX, cY))
+                    else:
+                        print("Marker 1, 2, or 3 not found in view!")
                     cv2.circle(frame, (cX, cY), 4, (0, 0, 255), -1)
                     # draw the ArUco marker ID on the frame
                     cv2.putText(frame, str(markerID),
