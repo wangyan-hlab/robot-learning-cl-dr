@@ -102,10 +102,26 @@ def place_eef():
 
 def place_aruco():
     name = "Apriltag36_11_00000"
-    # objpose = [[-0.53, 0.25, 0.82], [0,0,0]] # world coordinates
-    objpose = [[0.20, -0.30, 1.00], [0, 0, 0]]  # world coordinates
-    objpose = [[-0.65, 0.0, 0.78], [0, 0, np.pi/8.0]]  # world coordinates
-    models = [Model(name, objpose[0], orientation=objpose[1], file_type='sdf', reference_frame="world")]
+    # objpose = [-0.53, 0.25, 0.82, 0,0,0]  # world coordinates
+    objpose = [0.20, -0.30, 1.00, 0, 0, 0]  # world coordinates
+    objpose = [-0.65, 0.0, 0.78, 0, 0, np.pi/8.0]  # world coordinates
+    models = [Model(name, objpose, file_type='sdf', reference_frame="world")]
+    spawner.load_models(models)
+
+def place_chess_board():
+    name = "aruco_marker_4" 
+    # objpose = [[0.4, -0.1, 1.0], [0, 0, 0]]
+    objpose = [0.3, 0.0, 0.69, 0, 0, 1.57]
+    # objpose = [[0.4, 0.1, 1.0], [0, 0, 0]]
+    models = [Model(name, objpose, file_type='sdf', reference_frame="world")]
+    spawner.load_models(models)
+
+def place_marker_4x4_50():
+    name = "aruco_marker_1" 
+    # objpose = [[0.4, -0.1, 1.0], [0, 0, 0]]
+    objpose = [0.4, 0.0, 0.8, 0, 0, 0]
+    # objpose = [[0.4, 0.1, 1.0], [0, 0, 0]]
+    models = [Model(name, objpose, file_type='sdf', reference_frame="world")]
     spawner.load_models(models)
 
 def place_button():
@@ -151,6 +167,10 @@ def main():
                         help='Place door')
     parser.add_argument('--aruco', action='store_true',
                         help='Place aruco marker')
+    parser.add_argument('--marker', action='store_true',
+                        help='Place aruco marker_4x4_50')
+    parser.add_argument('--chess', action='store_true',
+                        help='Place chess board')
     parser.add_argument('--ball', action='store_true',
                         help='Place ball with collision')
     parser.add_argument('--cube', action='store_true',
@@ -174,6 +194,10 @@ def main():
         place_door()
     if args.aruco:
         place_aruco()
+    if args.marker:
+        place_marker_4x4_50()
+    if args.chess:
+        place_chess_board()
     if args.ball:
         place_ball()
     if args.cube:
