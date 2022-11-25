@@ -156,7 +156,7 @@ def place_peg():
 
 def main():
     """ Main function to be run. """
-    parser = argparse.ArgumentParser(description='Test force control')
+    parser = argparse.ArgumentParser(description='Load the models into Gazebo')
     parser.add_argument('--place', action='store_true',
                         help='Place models')
     parser.add_argument('--target', action='store_true',
