@@ -118,9 +118,8 @@ def place_chess_board():
 
 def place_marker_4x4_50():
     name = "aruco_marker_1" 
-    # objpose = [[0.4, -0.1, 1.0], [0, 0, 0]]
-    objpose = [0.4, 0.0, 0.8, 0, 0, 0]
-    # objpose = [[0.4, 0.1, 1.0], [0, 0, 0]]
+    # objpose = [0.4, 0.0, 0.8, 0, 0, 0]
+    objpose = [0.255-0.0155, 0.131+0.018, 0.75, 0, 0, 0]
     models = [Model(name, objpose, file_type='sdf', reference_frame="world")]
     spawner.load_models(models)
 
@@ -137,7 +136,7 @@ def place_button():
     for i in range(len(string_models)):
         pose = copy.copy(initial_pose)
         pose[1] -= 0.075*i
-        model = Model("button", pose, file_type="string", string_model=string_models[i], model_id="button_%s" % i)
+        model = Model(name, pose, file_type="string", string_model=string_models[i], model_id="button_%s" % i)
         models.append(model)
     spawner.load_models(models)
 

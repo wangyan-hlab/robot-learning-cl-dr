@@ -54,6 +54,7 @@ def move_joints(wait=True):
     # desired joint configuration 'q'
     # q = [0, 0, 0, 0, 0, 0]
     q = [1.57, -1.57, 1.05, -1.57, -1.57, 0]
+    q = [1.62, -1.50, 0.98, -1.57, -1.59, 0.05]
     # go to desired joint configuration
     # in t time (seconds)
     # wait is for waiting to finish the motion before executing

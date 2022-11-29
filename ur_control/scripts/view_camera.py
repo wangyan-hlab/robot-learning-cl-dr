@@ -28,6 +28,7 @@ class Listener:
         try:
             ## converting ros image messages to opencv images
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            cv_image = cv2.resize(cv_image, None, fx=1.0, fy=1.0, interpolation=cv2.INTER_AREA)
             self.img = cv_image
             # cv_image = self.bridge.imgmsg_to_cv2(data, "32FC1")
             # cv_image_array = np.array(cv_image, dtype = np.dtype('f8'))
