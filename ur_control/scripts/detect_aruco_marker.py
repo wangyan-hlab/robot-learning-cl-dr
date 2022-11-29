@@ -6,11 +6,25 @@ import cv2
 import time
 import sys
 import argparse
+import numpy as np
+import yaml
+import os
+path = os.path.join(os.getcwd(), "ros_ws/src/glozzom/ur_control/")
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-t", "--type", type=str, default="DICT_ARUCO_ORIGINAL", help="type of ArUCo tag to detect")
+ap.add_argument("-t", "--type", type=str, default="DICT_4X4_50", help="type of ArUCo tag to detect")
 args = vars(ap.parse_args())
+cam_conf_file = open(os.path.join(path, "config/realsense_camera_paras.yaml"), 'r')
+cam_dict = yaml.load(cam_conf_file, Loader=yaml.Loader)
+cam_intrinsic_mat = np.asarray(cam_dict['camera']['intrinsic_matrix'])
+print("[INFO] camera intrinsic matrix: {}".format(cam_intrinsic_mat))
+lens_to_base_mat = np.asarray(cam_dict['camera']['lens_to_base_matrix'])
+print("[INFO] camera lens to baselink matrix: {}".format(lens_to_base_mat))
+base_to_wrist3_mat = np.asarray(cam_dict['camera']['base_to_wrist3_matrix'])
+print("[INFO] camera baselink to robot wrist3 matrix: {}".format(base_to_wrist3_mat))
+
+IMAGE_DEPTH = 0.0   # TODO: object depth in the image
 
 # define names of each possible ArUco tag OpenCV supports
 ARUCO_DICT = {
@@ -57,7 +71,7 @@ class ImageListener:
             ## converting ros image messages to opencv images
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
 
-            frame = cv2.resize(cv_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_AREA)
+            frame = cv2.resize(cv_image, None, fx=1.0, fy=1.0, interpolation=cv2.INTER_AREA)
             # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             # detect ArUco markers in the input frame
             (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
@@ -88,11 +102,19 @@ class ImageListener:
                     cY = int((topLeft[1] + bottomRight[1]) / 2.0)
 
                     if markerID == 1:
-                        print("Marker 1 at: ({}, {})".format(cX, cY))
+                        print("ImageFrame/Marker_1 at: ({}, {})".format(cX, cY))
+                        imgXYZ = np.array([cX, cY, 1])
+                        camXYZ = np.dot(np.linalg.inv(cam_intrinsic_mat), imgXYZ)
+                        print("CameraLenFrame/Marker_1 at: ({}, {})".format(camXYZ[0], camXYZ[1]))
+                        cambaseXYZ = np.dot(lens_to_base_mat, np.array((camXYZ[0], camXYZ[1], IMAGE_DEPTH, 1)))
+                        print("CameraBaseFrame/Marker_1 at: ({}, {}, {})".format(cambaseXYZ[0], cambaseXYZ[1], cambaseXYZ[2]))
+                        rbteefXYZ = np.dot(base_to_wrist3_mat, cambaseXYZ)
+                        print("RobotEefFrame/Marker_1 at: ({}, {}, {})".format(rbteefXYZ[0], rbteefXYZ[1], rbteefXYZ[2]))
+
                     elif markerID == 2:
-                        print("Marker 2 at: ({}, {})".format(cX, cY))
+                        print("ImageFrame/Marker 2 at: ({}, {})".format(cX, cY))
                     elif markerID == 3:
-                        print("Marker 3 at: ({}, {})".format(cX, cY))
+                        print("ImageFrame/Marker 3 at: ({}, {})".format(cX, cY))
                     else:
                         print("Marker 1, 2, or 3 not found in view!")
                     cv2.circle(frame, (cX, cY), 4, (0, 0, 255), -1)
