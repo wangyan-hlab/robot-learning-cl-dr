@@ -119,7 +119,7 @@ def place_chess_board():
 def place_marker_4x4_50():
     name = "aruco_marker_1" 
     # objpose = [0.4, 0.0, 0.8, 0, 0, 0]
-    objpose = [0.255-0.0155, 0.131+0.018, 0.75, 0, 0, 0]
+    objpose = [0.255, 0.131, 0.78, 0, 0, 0]
     models = [Model(name, objpose, file_type='sdf', reference_frame="world")]
     spawner.load_models(models)
 

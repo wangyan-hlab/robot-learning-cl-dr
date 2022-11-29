@@ -63,6 +63,7 @@
   <xacro:include filename="$(find ur3_description)/urdf/camera/realsense_rs435_wrist.urdf.xacro" />
   <sensor_d435 parent="wrist_3_link">
     <origin xyz="0 0.040 -0.020" rpy="0 -${pi*120/180} -${pi/2}" />
+    <!-- <origin xyz="0 0 0" rpy="0 0 0" /> -->
   </sensor_d435>
 
   <!--

@@ -1,6 +1,8 @@
 #!/usr/bin/env python2
 import rospy
 from sensor_msgs.msg import Image as msg_Image
+from geometry_msgs.msg import Pose
+from ur_control import transformations
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import time
@@ -19,12 +21,14 @@ cam_conf_file = open(os.path.join(path, "config/realsense_camera_paras.yaml"), '
 cam_dict = yaml.load(cam_conf_file, Loader=yaml.Loader)
 cam_intrinsic_mat = np.asarray(cam_dict['camera']['intrinsic_matrix'])
 print("[INFO] camera intrinsic matrix: {}".format(cam_intrinsic_mat))
-lens_to_base_mat = np.asarray(cam_dict['camera']['lens_to_base_matrix'])
-print("[INFO] camera lens to baselink matrix: {}".format(lens_to_base_mat))
-base_to_wrist3_mat = np.asarray(cam_dict['camera']['base_to_wrist3_matrix'])
-print("[INFO] camera baselink to robot wrist3 matrix: {}".format(base_to_wrist3_mat))
+cam_dist = np.asarray(cam_dict['camera']['dist'])
+print("[INFO] camera dist: {}".format(cam_dist))
+lens_to_cambase_mat = np.asarray(cam_dict['camera']['lens_to_base_matrix'])
+print("[INFO] camera lens to baselink matrix: {}".format(lens_to_cambase_mat))
+cambase_to_wrist3_mat = np.asarray(cam_dict['camera']['base_to_wrist3_matrix'])
+print("[INFO] camera baselink to robot wrist3 matrix: {}".format(cambase_to_wrist3_mat))
 
-IMAGE_DEPTH = 0.0   # TODO: object depth in the image
+IMAGE_DEPTH = 0.0   # TODO: object depth in the image, tvec[2] might be replaced with this value
 
 # define names of each possible ArUco tag OpenCV supports
 ARUCO_DICT = {
@@ -55,7 +59,9 @@ class ImageListener:
     def __init__(self, topic):
         self.topic = topic
         self.bridge = CvBridge()
-        self.sub = rospy.Subscriber(topic, msg_Image, self.imageDepthCallback)
+        self.img_sub = rospy.Subscriber(topic, msg_Image, self.imageDepthCallback)
+        self.pose_pub = rospy.Publisher("/marker/mat_to_wrist3", Pose, queue_size=1)
+        self.rate = rospy.Rate(0.4) # Hz
 
     def imageDepthCallback(self, data):
         try:
@@ -84,6 +90,17 @@ class ImageListener:
                     # extract the marker corners (which are always returned
                     # in top-left, top-right, bottom-right, and bottom-left
                     # order)
+                    # cv2.aruco.drawDetectedMarkers(frame, corners)
+                    print("-- Marker Info --\n Corner:\n {}\n ID: {}".format(markerCorner, markerID))
+                    (rvec, tvec) = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.02, cam_intrinsic_mat, cam_dist)
+                    print("rvec: {}".format(rvec))
+                    print("tvec: {}".format(tvec))
+                    # Draw Axis
+                    # cv2.drawFrameAxes(frame, cam_intrinsic_mat, cam_dist, rvec, tvec, 0.01)
+                    (rotmat, _) = cv2.Rodrigues(rvec)
+                    tvec = tvec.reshape((3,))
+                    print("rotmat: {}".format(rotmat))
+                    print("tvec: {}".format(tvec))
                     corners = markerCorner.reshape((4, 2))
                     (topLeft, topRight, bottomRight, bottomLeft) = corners
                     # convert each of the (x, y)-coordinate pairs to integers
@@ -102,14 +119,27 @@ class ImageListener:
                     cY = int((topLeft[1] + bottomRight[1]) / 2.0)
 
                     if markerID == 1:
-                        print("ImageFrame/Marker_1 at: ({}, {})".format(cX, cY))
-                        imgXYZ = np.array([cX, cY, 1])
-                        camXYZ = np.dot(np.linalg.inv(cam_intrinsic_mat), imgXYZ)
-                        print("CameraLenFrame/Marker_1 at: ({}, {})".format(camXYZ[0], camXYZ[1]))
-                        cambaseXYZ = np.dot(lens_to_base_mat, np.array((camXYZ[0], camXYZ[1], IMAGE_DEPTH, 1)))
-                        print("CameraBaseFrame/Marker_1 at: ({}, {}, {})".format(cambaseXYZ[0], cambaseXYZ[1], cambaseXYZ[2]))
-                        rbteefXYZ = np.dot(base_to_wrist3_mat, cambaseXYZ)
-                        print("RobotEefFrame/Marker_1 at: ({}, {}, {})".format(rbteefXYZ[0], rbteefXYZ[1], rbteefXYZ[2]))
+                        marker_to_lens_mat = np.identity(4)
+                        marker_to_lens_mat[:3, 3] = tvec
+                        marker_to_lens_mat[:3, :3] = rotmat
+                        print("CameraLensFrame/Marker_1 transformation: {}".format(marker_to_lens_mat))
+                        marker_to_cambase_mat = np.dot(lens_to_cambase_mat, marker_to_lens_mat)
+                        print("CameraBaseFrame/Marker_1 transformation: {}".format(marker_to_cambase_mat))
+                        marker_to_wrist3_mat = np.dot(cambase_to_wrist3_mat, marker_to_cambase_mat)
+                        print("RobotWrist3Frame/Marker_1 transformation: {}".format(marker_to_wrist3_mat))
+                        # publish marker_to_wrist3_pose to the topic "/marker/mat_to_wrist3"
+                        marker_to_wrist3_pose = transformations.pose_quaternion_from_matrix(marker_to_wrist3_mat)
+                        p = Pose()
+                        p.position.x = marker_to_wrist3_pose[0]
+                        p.position.y = marker_to_wrist3_pose[1]
+                        p.position.z = marker_to_wrist3_pose[2]
+                        p.orientation.x = marker_to_wrist3_pose[3]
+                        p.orientation.y = marker_to_wrist3_pose[4]
+                        p.orientation.z = marker_to_wrist3_pose[5]
+                        p.orientation.w = marker_to_wrist3_pose[6]
+                        self.pose_pub.publish(p)
+                        self.rate.sleep()
+
 
                     elif markerID == 2:
                         print("ImageFrame/Marker 2 at: ({}, {})".format(cX, cY))
