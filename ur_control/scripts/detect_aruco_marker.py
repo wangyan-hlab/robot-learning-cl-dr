@@ -2,6 +2,7 @@
 import rospy
 from sensor_msgs.msg import Image as msg_Image
 from geometry_msgs.msg import Pose
+from std_msgs.msg import Bool
 from ur_control import transformations
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
@@ -20,13 +21,13 @@ args = vars(ap.parse_args())
 cam_conf_file = open(os.path.join(path, "config/realsense_camera_paras.yaml"), 'r')
 cam_dict = yaml.load(cam_conf_file, Loader=yaml.Loader)
 cam_intrinsic_mat = np.asarray(cam_dict['camera']['intrinsic_matrix'])
-print("[INFO] camera intrinsic matrix: {}".format(cam_intrinsic_mat))
+# print("[INFO] camera intrinsic matrix: {}".format(cam_intrinsic_mat))
 cam_dist = np.asarray(cam_dict['camera']['dist'])
-print("[INFO] camera dist: {}".format(cam_dist))
+# print("[INFO] camera dist: {}".format(cam_dist))
 lens_to_cambase_mat = np.asarray(cam_dict['camera']['lens_to_base_matrix'])
-print("[INFO] camera lens to baselink matrix: {}".format(lens_to_cambase_mat))
+# print("[INFO] camera lens to baselink matrix: {}".format(lens_to_cambase_mat))
 cambase_to_wrist3_mat = np.asarray(cam_dict['camera']['base_to_wrist3_matrix'])
-print("[INFO] camera baselink to robot wrist3 matrix: {}".format(cambase_to_wrist3_mat))
+# print("[INFO] camera baselink to robot wrist3 matrix: {}".format(cambase_to_wrist3_mat))
 
 IMAGE_DEPTH = 0.0   # TODO: object depth in the image, tvec[2] might be replaced with this value
 
@@ -60,8 +61,16 @@ class ImageListener:
         self.topic = topic
         self.bridge = CvBridge()
         self.img_sub = rospy.Subscriber(topic, msg_Image, self.imageDepthCallback)
+        self.move_sub = rospy.Subscriber('/robot/move_status', Bool, self.robotMoveCallback)
         self.pose_pub = rospy.Publisher("/marker/mat_to_wrist3", Pose, queue_size=1)
-        self.rate = rospy.Rate(0.4) # Hz
+        self.move_msg = False
+        self.rate = rospy.Rate(10) # Hz
+
+    def robotMoveCallback(self, data):
+        self.move_msg = data.data
+        if self.move_msg:
+            rospy.loginfo("Robot is moving, stopping detecting markers!")
+            rospy.signal_shutdown("Quit")
 
     def imageDepthCallback(self, data):
         try:
@@ -80,9 +89,10 @@ class ImageListener:
             frame = cv2.resize(cv_image, None, fx=1.0, fy=1.0, interpolation=cv2.INTER_AREA)
             # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             # detect ArUco markers in the input frame
+            
             (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
             # verify *at least* one ArUco marker was detected
-            if len(corners) > 0:
+            if len(corners) > 0 and (not self.move_msg):
                 # flatten the ArUco IDs list
                 ids = ids.flatten()
                 # loop over the detected ArUCo corners
@@ -93,14 +103,14 @@ class ImageListener:
                     # cv2.aruco.drawDetectedMarkers(frame, corners)
                     print("-- Marker Info --\n Corner:\n {}\n ID: {}".format(markerCorner, markerID))
                     (rvec, tvec) = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.02, cam_intrinsic_mat, cam_dist)
-                    print("rvec: {}".format(rvec))
-                    print("tvec: {}".format(tvec))
+                    # print("rvec: {}".format(rvec))
+                    # print("tvec: {}".format(tvec))
                     # Draw Axis
                     # cv2.drawFrameAxes(frame, cam_intrinsic_mat, cam_dist, rvec, tvec, 0.01)
                     (rotmat, _) = cv2.Rodrigues(rvec)
                     tvec = tvec.reshape((3,))
-                    print("rotmat: {}".format(rotmat))
-                    print("tvec: {}".format(tvec))
+                    # print("rotmat: {}".format(rotmat))
+                    # print("tvec: {}".format(tvec))
                     corners = markerCorner.reshape((4, 2))
                     (topLeft, topRight, bottomRight, bottomLeft) = corners
                     # convert each of the (x, y)-coordinate pairs to integers
@@ -122,13 +132,15 @@ class ImageListener:
                         marker_to_lens_mat = np.identity(4)
                         marker_to_lens_mat[:3, 3] = tvec
                         marker_to_lens_mat[:3, :3] = rotmat
-                        print("CameraLensFrame/Marker_1 transformation: {}".format(marker_to_lens_mat))
+                        # print("CameraLensFrame/Marker_1 transformation: {}".format(marker_to_lens_mat))
                         marker_to_cambase_mat = np.dot(lens_to_cambase_mat, marker_to_lens_mat)
-                        print("CameraBaseFrame/Marker_1 transformation: {}".format(marker_to_cambase_mat))
+                        # print("CameraBaseFrame/Marker_1 transformation: {}".format(marker_to_cambase_mat))
                         marker_to_wrist3_mat = np.dot(cambase_to_wrist3_mat, marker_to_cambase_mat)
-                        print("RobotWrist3Frame/Marker_1 transformation: {}".format(marker_to_wrist3_mat))
+                        # print("RobotWrist3Frame/Marker_1 transformation: {}".format(marker_to_wrist3_mat))
                         # publish marker_to_wrist3_pose to the topic "/marker/mat_to_wrist3"
                         marker_to_wrist3_pose = transformations.pose_quaternion_from_matrix(marker_to_wrist3_mat)
+                        rospy.loginfo("marker_to_wrist3_pose = {}".format(marker_to_wrist3_pose))
+
                         p = Pose()
                         p.position.x = marker_to_wrist3_pose[0]
                         p.position.y = marker_to_wrist3_pose[1]
@@ -139,7 +151,6 @@ class ImageListener:
                         p.orientation.w = marker_to_wrist3_pose[6]
                         self.pose_pub.publish(p)
                         self.rate.sleep()
-
 
                     elif markerID == 2:
                         print("ImageFrame/Marker 2 at: ({}, {})".format(cX, cY))

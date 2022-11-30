@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from geometry_msgs.msg import Pose
+from std_msgs.msg import Bool
 from ur_control import transformations, conversions
 from ur_control.arm import Arm
 import numpy as np
@@ -8,7 +9,9 @@ import numpy as np
 class PoseListener:
     def __init__(self, topic):
         self.pose_sub = rospy.Subscriber(topic, Pose, self.poseCallback)
-        
+        self.move_pub = rospy.Publisher('/robot/move_status', Bool, queue_size=10)
+        self.rate = rospy.Rate(10) # Hz
+
     def poseCallback(self, data):
         marker_to_wrist3_mat = conversions.from_pose(data)
         print("[INFO] marker_to_wrist3_mat:", marker_to_wrist3_mat)
@@ -26,9 +29,19 @@ class PoseListener:
         target_pose = transformations.pose_quaternion_from_matrix(target_mat)
         deltaz = np.array([0.0, 0.0, -0.03, 0., 0., 0.])
         target_pose = transformations.pose_euler_to_quaternion(target_pose, deltaz, ee_rotation=True)
-        print("[INFO] target_pose: ", target_pose)
+        rospy.loginfo("target_pose = {}".format(target_pose))
+        # tell the marker detector to stop detecting because the robot is moving
+        self.move_pub.publish(True)
+        self.rate.sleep()
         arm.set_target_pose(pose=target_pose, wait=True, t=10.0)
-        rospy.signal_shutdown(">>> Target pose reached, shutting down the node ...")
+        print("distance to target: ", np.linalg.norm(arm.end_effector()[:3] - target_pose[:3]))
+        
+        if np.linalg.norm(arm.end_effector()[:3] - target_pose[:3]) < 1e-3:
+            rospy.loginfo("Target reached!")
+            self.move_pub.publish(False)
+            rospy.signal_shutdown("Quit")
+        else:
+            print("Target not reached!")
 
         return marker_to_wrist3_mat
 
